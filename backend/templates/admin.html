@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Model administration</title>
+</head>
+<body>
+  <h1>Model administration</h1>
+  <p id="message" role="status" aria-live="polite"></p>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Type</th>
+        <th>Status</th>
+        <th>Dataset version</th>
+        <th>Threshold</th>
+        <th>Validation metrics</th>
+        <th>Created</th>
+        <th>Reviewer</th>
+        <th>Reviewed at</th>
+        <th>Notes</th>
+        <th>Review</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for model in models %}
+      <tr>
+        <td>{{ model.model_version_id }}</td>
+        <td>{{ model.model_type }}</td>
+        <td>{{ model.status }}</td>
+        <td>{{ model.trained_on_dataset_version }}</td>
+        <td>{{ model.production_threshold_used }}</td>
+        <td>{{ model.validation_metrics }}</td>
+        <td>{{ model.created_at }}</td>
+        <td>{{ model.reviewed_by }}</td>
+        <td>{{ model.reviewed_at }}</td>
+        <td>{{ model.notes }}</td>
+        <td>
+          {% if model.status == "candidate" %}
+          <button type="button" data-model-id="{{ model.model_version_id }}" data-decision="approved">Approve</button>
+          <button type="button" data-model-id="{{ model.model_version_id }}" data-decision="rejected">Reject</button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <script>
+    const message = document.getElementById("message");
+    document.querySelectorAll("button[data-model-id]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        message.textContent = "Submitting review...";
+        try {
+          const response = await fetch("/admin/review", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model_version_id: button.dataset.modelId,
+              decision: button.dataset.decision
+            })
+          });
+          const result = await response.json();
+          if (!response.ok) {
+            throw new Error(result.error || `Request failed (${response.status})`);
+          }
+          message.textContent = `${result.model_version_id}: ${result.status}`;
+          window.setTimeout(() => window.location.reload(), 1200);
+        } catch (error) {
+          message.textContent = error.message;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
